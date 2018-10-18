@@ -2,7 +2,7 @@
 (* PipeCheck: Specifying and Verifying Microarchitectural                     *)
 (* Enforcement of Memory Consistency Models                                   *)
 (*                                                                            *)
-(* Copyright (c) 2015 Daniel Lustig, Princeton University                     *)
+(* Copyright (c) 2018 Yatin Manerkar (Princeton Uni.) & Daniel Lustig (NVIDIA)*)
 (* All rights reserved.                                                       *)
 (*                                                                            *)
 (* This library is free software; you can redistribute it and/or              *)
@@ -32,31 +32,41 @@ open Parser
 open MicroarchLexer
 open MicroarchParser
 
-let input_filename = ref ""
 let uarch_filename = ref ""
-let extra_constraints_filename = ref ""
 let do_reduction = ref true
 let ghost_auto = ref false
-let max_depth = ref 100
+let max_depth = ref 1000
+let isa_mcm = ref "SC"
 
-let update_input_filename s = input_filename := s
 let update_output_filename s =
   let oc = open_out s in BackendLinux.outfile := oc
 let update_uarch_filename s = uarch_filename := s
-let update_extra_constraints_filename s = extra_constraints_filename := s
 let update_max_depth n = max_depth := n
 let update_verbosity n = BackendLinux.verbosity := n
+let update_cp_threshold n = BackendLinux.cpThreshold := n
 let unknown_argument s = raise (Arg.Bad ("Unknown argument: " ^ s))
+let update_filter_strat n = BackendLinux.filter_strat := n
+let update_cex_bound n = BackendLinux.cexBound := n
+let update_isa_mcm s = isa_mcm := s
+let update_isa_sym n = use_isa_sym := n
 
 let parse_anon s = unknown_argument s
 
 let speclist = [
-  ("-i", Arg.String update_input_filename, "Input litmus test (.test format)");
   ("-o", Arg.String update_output_filename, "Output file (stdout otherwise)");
   ("-m", Arg.String update_uarch_filename, "Microarchitecture model file");
-  ("-e", Arg.String update_extra_constraints_filename, "Extra constraints to add to the microarchitecture for this particular run");
   ("-r", Arg.Clear  do_reduction, "Don't perform transitive reduction");
   ("-d", Arg.Int    update_max_depth, "Max depth for DPLL search");
+  ("-c", Arg.Int    update_cp_threshold, "Cross product threshold for distributing ANDs over ORs (default 0, i.e. no distribution)");
+  ("-s", Arg.Int    update_isa_sym, "Use memoization (ISA-level symmetry) (default 0 = false)");
+  ("-l", Arg.String update_isa_mcm, "ISA-level MCM for PipeProof (valid values are \"SC\" and \"TSO\" (no quotes) )");
+  ("-x", Arg.Set    genCex, "Try to generate cyclic counterexample if TC abstraction support proof fails (default is no)");
+  ("-b", Arg.Int    update_cex_bound, "Max size of cyclic counterexample to generate (value only used if -x is also provided, default is 10)");
+  ("-f", Arg.Int    update_filter_strat, "TC filtering strategy for PipeProof:
+    0: filter both before and after applying chain invariants
+    1: filter only after applying chain invariants (default)
+    2: after applying chain invariants, filter and apply covering sets
+    3 (or any other number) : filter and apply covering sets both before and after applying chain invariants");
   ("-v", Arg.Int    update_verbosity, "Set verbosity level:
     0: Default; print final output
     1: + Print all solver decisions
@@ -71,10 +81,7 @@ let speclist = [
 let _ = Arg.parse speclist parse_anon "PipeGraph"
 
 let _ =
-  if (String.length !input_filename = 0)
-  then (Arg.usage speclist "PipeGraph";
-    raise (Arg.Bad "No input file specified"))
-  else if (String.length !uarch_filename = 0)
+  if (String.length !uarch_filename = 0)
   then (Arg.usage speclist "PipeGraph";
     raise (Arg.Bad "No microarchitecture model file specified"))
   else ();;
@@ -142,32 +149,6 @@ let rec filter_ghosts_helper program =
 let filter_ghosts x =
   PipeGraph.Pair (filter_ghosts_helper (PipeGraph.fst x), PipeGraph.snd x)
 
-let (allowed, initial_conditions, programs) =
-  if (String.length !input_filename > 0)
-  then
-    let file_descr = Unix.openfile !input_filename [Unix.O_RDONLY] 0 in
-    let channel = Unix.in_channel_of_descr file_descr in
-    let lexbuf = Lexing.from_channel channel in
-    let (a, i, progs) = try
-      Parser.main Lexer.token lexbuf
-    with exn ->
-      begin
-        let curr = lexbuf.Lexing.lex_curr_p in
-        let line = curr.Lexing.pos_lnum in
-        let offset = curr.Lexing.pos_cnum - curr.Lexing.pos_bol in
-        let token = Lexing.lexeme lexbuf in
-        Printf.printf "Litmus test parsing error: line %d, offset %d, token %s\n"
-          line offset token;
-        raise (Failure "Parsing litmus test")
-      end in
-    (a, i, progs)
-    (*
-    if !ghost_auto
-    then (a, i, List.map filter_ghosts progs)
-    else (a, i, progs)
-    *)
-  else raise (Arg.Bad "Litmus test could not be parsed!")
-
 let rec n_copies n x =
   if n > 0 then (x :: n_copies (n-1) x) else [x]
 
@@ -189,26 +170,19 @@ let parse_uarch filename num_cores =
       raise (Failure "Parsing microarchitecture")
     end
 
-let program_length p = List.fold_left (+) 0 (map List.length p)
-
-let core_count p = fold_left max (map coreID p) 0
-
 let processor =
-  let num_cores =
-    match programs with
-    | p :: _ -> core_count (PipeGraph.fst (PipeGraph.fst p))
-    | _ -> 0
-    in
+  let num_cores = 0 in
   let baseline = parse_uarch !uarch_filename num_cores in
-  let extras =
-    if (String.length !extra_constraints_filename > 0)
-    then parse_uarch !extra_constraints_filename num_cores
-    else [] in
-  baseline @ extras
+  baseline
 
-let first_observable_graph programs initial =
+let isa_mcm_for s =
+  match s with
+  | "TSO" -> PipeGraph.tSO
+  | _ -> PipeGraph.seqConst
+
+let first_observable_graph =
   let graph =
-    PipeGraph.evaluateUHBGraphs !max_depth processor programs initial in
+    PipeGraph.evaluateUHBGraphs !max_depth processor (isa_mcm_for !isa_mcm) in
 
   let observable =
     match graph with
@@ -221,20 +195,12 @@ let first_observable_graph programs initial =
   in
 
   let result_string =
-    match (allowed, observable) with
-    | (Permitted, true) -> "Allowed/Observable"
-    | (Permitted, false) -> "Allowed/Not Observable (Stricter than necessary) !"
-    | (Forbidden, true) -> "Forbidden/Observable (BUG) !"
-    | (Forbidden, false) -> "Forbidden/Not observable"
-    | (Required, true) -> "Required/Observable"
-    | (Required, false) -> "Required/Not Observable (BUG) !"
-    | (Unobserved, true) -> "Unobserved/Observable (Weaker than real HW?) !"
-    | (Unobserved, false) -> "Unobserved/Not observable (Weaker than spec, same as real HW) !"
+    if observable then "// Microarchitecture could not be proven! See end of output file for any failing fragment and/or counterexample." else "// Microarchitecture is correct for all programs!"
   in
 
-  Printf.printf "// Input %s: %s\n" !input_filename result_string
+  Printf.printf "%s\n" result_string
 
-let _ = first_observable_graph programs initial_conditions;
+let _ = first_observable_graph;
 
 print_string "// Done!\n"
 

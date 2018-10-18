@@ -1,20 +1,20 @@
 # Thanks to: http://adam.chlipala.net/cpdt/html/Large.html
 
 MODULES := Debug Util StringUtil Instruction Graph \
-  GraphvizCompressed PipeGraph FOL FOLPredicate
+  GraphvizCompressed PipeGraph ISAEdge FOL FOLPredicate
 VS      := $(MODULES:%=%.v)
 DOCS    := $(MODULES:%=../doc/PipeGraph.%.html)
 
 .PHONY: all coq doc clean debug web
 
-all: coq doc pipecheck
+all: coq doc pipeproof
 
 debug: Main.d.byte
 
 profile: Main.p.native
 
-pipecheck: Main.native
-	cp Main.native pipecheck
+pipeproof: Main.native
+	cp Main.native pipeproof
 
 Main.native: Main.ml PipeGraph.ml HerdGraph.ml coq BackendLinux.ml PipeGraphLinux.ml
 	ocamlbuild $@
@@ -45,7 +45,7 @@ Makefile.coq: Makefile $(VS)
 clean:: Makefile.coq
 	$(MAKE) -f Makefile.coq clean
 	ocamlbuild -clean Main.native
-	-rm -f pipecheck
+	-rm -f pipeproof
 	-rm -f PipeGraph.ml
 	-rm -f PipeGraph.mli
 	-rm -f Makefile.coq

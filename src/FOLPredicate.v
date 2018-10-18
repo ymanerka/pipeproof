@@ -83,6 +83,66 @@ Inductive FOLPredicateType :=
 | PredHasID : nat -> nat -> nat -> nat -> string -> FOLPredicateType
 | PredHasGlobalID : nat -> string -> FOLPredicateType.
 
+Inductive ISAEdge : Set :=
+| EdgePO : ISAEdge
+| EdgeCO : ISAEdge
+| EdgeRF : ISAEdge
+| EdgeFR : ISAEdge
+| EdgeRFE : ISAEdge
+| EdgeFRE : ISAEdge
+| EdgePO_loc : ISAEdge
+| EdgePO_plus : ISAEdge
+| EdgePO_loc_plus : ISAEdge
+| EdgeFence : ISAEdge
+| EdgeToFence : ISAEdge
+| EdgeFromFence : ISAEdge
+| EdgeFence_plus : ISAEdge
+| EdgeFencePO_plus : ISAEdge
+| EdgePOFence_plus : ISAEdge
+| EdgePPO : ISAEdge
+| EdgePPO_plus : ISAEdge
+| EdgeFencePPO_plus : ISAEdge
+| EdgePPOFence_plus : ISAEdge.
+
+Inductive FOLSymPred :=
+(* | PredDebug : string -> FOLPredicateType *)
+| SymPredHasDependency : Microop -> Microop -> ISAEdge -> FOLSymPred
+| SymPredIsRead : Microop -> FOLSymPred
+| SymPredIsWrite : Microop -> FOLSymPred
+| SymPredIsAPICAccess : Microop -> string -> FOLSymPred
+| SymPredIsFence : Microop -> FOLSymPred
+| SymPredAccessType : Microop -> string -> FOLSymPred
+(* | PredSameUop : string -> string -> FOLSymPred
+| SymPredSameNode : GraphNode -> GraphNode -> FOLSymPred *)
+| SymPredSameCore : Microop -> Microop -> FOLSymPred
+(* | PredSmallerGlobalID : Microop -> Microop -> FOLSymPred
+| PredSameGlobalID : Microop -> Microop -> FOLSymPred *)
+| SymPredSameIntraInstID : Microop -> Microop -> FOLSymPred
+| SymPredSameThread : Microop -> Microop -> FOLSymPred
+| SymPredOnCore : Microop -> nat -> FOLSymPred
+| SymPredOnThread : Microop -> nat -> FOLSymPred
+| SymPredSameVirtualAddress : Microop -> Microop -> FOLSymPred
+| SymPredSamePhysicalAddress : Microop -> Microop -> FOLSymPred
+| SymPredSameVirtualTag : Microop -> Microop -> FOLSymPred
+| SymPredSamePhysicalTag : Microop -> Microop -> FOLSymPred
+| SymPredSameIndex : Microop -> Microop -> FOLSymPred
+| SymPredKnownData : Microop -> FOLSymPred
+| SymPredSameData : Microop -> Microop -> FOLSymPred
+| SymPredDataFromPAInitial : Microop -> FOLSymPred
+| SymPredDataFromPAFinal : Microop -> FOLSymPred
+| SymPredSamePAasPTEforVA : Microop -> Microop -> FOLSymPred
+(* | PredDataIsCorrectTranslation : AccessedStatus -> DirtyStatus -> string -> string -> FOLSymPred *)
+(* | PredTranslationMatchesInitialState : AccessedStatus -> DirtyStatus -> string -> FOLSymPred *)
+| SymPredProgramOrder : Microop -> Microop -> FOLSymPred
+| SymPredConsec : Microop -> Microop -> FOLSymPred.
+(* | PredAddEdges : list PredGraphEdge -> FOLSymPred
+| PredEdgesExist : list PredGraphEdge -> FOLSymPred
+| PredNodesExist : list PredGraphNode -> FOLSymPred
+| PredTrue : FOLSymPred
+| PredFalse : FOLSymPred *)
+(* | PredHasID : nat -> nat -> nat -> nat -> string -> FOLSymPred
+| PredHasGlobalID : nat -> string -> FOLSymPred.*)
+
 Definition stringOfPredicate
   (verbose : bool)
   (p : FOLPredicateType)

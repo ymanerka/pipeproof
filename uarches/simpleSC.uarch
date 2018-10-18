@@ -1,0 +1,136 @@
+% Legend:
+% "/\" = AND
+% "\/" = OR
+% "~"  = NOT
+% "=>" = IMPLIES
+% "%"  = COMMENT
+%
+% Graph node = (instruction, [(pipeline,] stage number[)])
+% Graph edge = (node, node, label)
+%
+% "c" is predefined to be the core ID
+
+StageName 0 "Fetch".
+StageName 1 "Execute".
+StageName 2 "Writeback".
+
+Axiom "Writes_Path":
+forall microops "i",
+AddEdges [((i, Fetch),      (i, Execute),     "path");
+          ((i, Execute),     (i, Writeback),    "path")
+          ].
+
+Axiom "PO_Fetch":
+forall microops "i1",
+forall microops "i2",
+SameCore i1 i2 /\ ProgramOrder i1 i2 /\ ~SameMicroop i1 i2 =>
+AddEdge ((i1, Fetch), (i2, Fetch), "PO", "blue").
+
+Axiom "Execute_stage_is_in_order":
+forall microops "i1",
+forall microops "i2",
+SameCore i1 i2 /\ EdgeExists ((i1, Fetch),  (i2, Fetch), "") /\ ~SameMicroop i1 i2 =>
+AddEdge ((i1, Execute), (i2, Execute), "PPO", "darkgreen").
+
+% Note: This enforces ordering at WB if ordering is enforced at IF.
+Axiom "Writeback_stage_is_in_order":
+forall microops "i1",
+forall microops "i2",
+SameCore i1 i2 /\ EdgeExists ((i1, Fetch),  (i2, Fetch), "") /\ ~SameMicroop i1 i2 =>
+AddEdge ((i1, Writeback), (i2, Writeback), "PPO", "darkgreen").
+
+Axiom "WriteSerialization":
+forall microops "i1",
+forall microops "i2",
+    ( ~(SameMicroop i1 i2) /\ IsAnyWrite i1 /\ IsAnyWrite i2 /\ SamePhysicalAddress i1 i2) =>
+    (EdgeExists ((i1, Writeback), (i2, Writeback), "ws", "red") \/
+     EdgeExists ((i2, Writeback), (i1, Writeback), "ws", "red")).
+
+Axiom "EnforceFinalWrite":
+  forall microop "w",
+  forall microop "w'",
+  (IsAnyWrite w /\ IsAnyWrite w' /\ SamePhysicalAddress w w' /\
+   ~SameMicroop w w' /\ DataFromFinalStateAtPA w') =>
+      AddEdge ((w, Writeback), (w', Writeback), "ws_final", "red").
+
+Axiom "EnforceWriteOrdering":
+  forall microop "w",
+  forall microop "i",
+  (IsAnyWrite w /\ SameCore w i /\ EdgeExists((w, Fetch), (i, Fetch), "") /\ ~SameMicroop w i) =>
+      AddEdge ((w, Writeback), (i, Execute), "EWO", "green").
+
+% Constraints on values read by loads follow.
+
+DefineMacro "BeforeAllWrites":
+  % Read occurs before all writes to same PA & Data
+  DataFromInitialStateAtPA i /\
+  forall microop "w", (
+    (IsAnyWrite w /\ SamePhysicalAddress w i /\ ~SameMicroop i w) =>
+    AddEdge ((i, Execute), (w, Writeback), "fr", "red")).
+
+DefineMacro "Before_Or_After_Every_SameAddrWrite":
+  % Either before or after every write to the same physical address
+  forall microop "w", (
+    (IsAnyWrite w /\ SamePhysicalAddress w i /\ ~SameMicroop w i) =>
+    (AddEdge ((w, Writeback), (i, Execute), "wsrf", "crimson") \/
+     AddEdge ((i, Execute), (w, Writeback), "fr", "red"))).
+
+DefineMacro "No_SameAddrWrites_Btwn_Src_And_Read":
+  % Read from "w", and there must not exist any writes w' in between w and i
+  exists microop "w", (
+    IsAnyWrite w /\ SamePhysicalAddress w i /\ SameData w i /\
+    AddEdge ((w, Writeback), (i, Execute), "rf", "red") /\
+    ~(exists microop "w'",
+      IsAnyWrite w' /\ SamePhysicalAddress i w' /\ ~SameMicroop w w' /\
+      EdgesExist [((w , Writeback), (w', Writeback), "");
+                  ((w', Writeback), (i, Execute), "")])).
+
+Axiom "Read_Values":
+forall microops "i",
+IsAnyRead i =>
+(
+      ExpandMacro BeforeAllWrites
+      \/
+      (
+        ExpandMacro No_SameAddrWrites_Btwn_Src_And_Read
+        /\
+        ExpandMacro Before_Or_After_Every_SameAddrWrite
+      )
+).
+
+Axiom "Mappings":
+forall microop "i",
+forall microop "j",
+(HasDependency po i j => AddEdge ((i, Fetch), (j, Fetch), "po_arch", "blue")) /\
+(HasDependency co i j => AddEdge ((i, Writeback), (j, Writeback), "co_arch", "blue")) /\
+(HasDependency rf i j => AddEdge ((i, Writeback), (j, Execute), "rf_arch", "red")) /\
+(HasDependency fr i j => AddEdge ((i, Execute), (j, Writeback), "fr_arch", "blue")).
+
+Axiom "Theory_Lemmas":
+forall microops "i",
+(SameMicroop i i) /\
+(SameCore i i) /\
+(SamePhysicalAddress i i) /\
+(SameData i i) /\
+forall microops "j",
+(HasDependency po i j => (ProgramOrder i j /\ SameCore i j)) /\
+% Prevent the final write case if a co edge emanates from an instruction.
+(HasDependency co i j => (IsAnyWrite i /\ IsAnyWrite j /\ SameVirtualAddress i j /\ SamePhysicalAddress i j /\ ~DataFromFinalStateAtPA i)) /\
+% Prevent the read initial value case in the case of an rf.
+(HasDependency rf i j => (IsAnyWrite i /\ IsAnyRead j /\ SameVirtualAddress i j /\ SamePhysicalAddress i j /\ SameData i j /\ ~DataFromInitialStateAtPA i)) /\
+(HasDependency fr i j => (IsAnyRead i /\ IsAnyWrite j /\ SameVirtualAddress i j /\ SamePhysicalAddress i j)) /\
+(IsAnyWrite i => ~IsAnyRead i) /\ (IsAnyRead i => ~IsAnyWrite i) /\
+(IsAnyRead i \/ IsAnyWrite i) /\
+(SameMicroop i j => SameCore i j) /\
+(forall microops "k",
+(SameCore i j /\ SameCore j k => SameCore i k) /\
+(SamePhysicalAddress i j /\ SamePhysicalAddress j k => SamePhysicalAddress i k)) /\
+(HasDependency po_loc i j => HasDependency po i j /\ SameVirtualAddress i j /\ SamePhysicalAddress i j) /\
+(HasDependency rfe i j => HasDependency rf i j /\ ~SameCore i j) /\
+(HasDependency fre i j => HasDependency fr i j /\ ~SameCore i j).
+
+Axiom "Invariant_poplus":
+forall microop "i",
+forall microop "j",
+HasDependency po_plus i j =>
+  (AddEdge ((i, Fetch), (j, Fetch), "") /\ SameCore i j).

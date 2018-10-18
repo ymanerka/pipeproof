@@ -1,5 +1,5 @@
 (******************************************************************************)
-(* Copyright (c) 2015 Daniel Lustig, Princeton University                     *)
+(* Copyright (c) 2018 Yatin Manerkar (Princeton Uni.) & Daniel Lustig (NVIDIA)*)
 (*                                                                            *)
 (* Permission is hereby granted, free of charge, to any person obtaining a    *)
 (* copy of this software and associated documentation files (the "Software"), *)
@@ -86,5 +86,5 @@ Fixpoint find_string
   | h::t =>
     if beq_string s h
     then true
-    else false
+    else find_string s t
   end.

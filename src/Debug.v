@@ -1,5 +1,5 @@
 (******************************************************************************)
-(* Copyright (c) 2015 Daniel Lustig, Princeton University                     *)
+(* Copyright (c) 2018 Yatin Manerkar (Princeton Uni.) & Daniel Lustig (NVIDIA)*)
 (*                                                                            *)
 (* Permission is hereby granted, free of charge, to any person obtaining a    *)
 (* copy of this software and associated documentation files (the "Software"), *)
@@ -58,6 +58,13 @@ Definition PrintlnFlush
   (l : list string)
   : A :=
   PrintfFlush x (StringOf (app l [newline])).
+
+Definition PrintTimestamp
+  {A : Type}
+  (x : A)
+  (s : string)
+  : A :=
+  x.
 
 Definition Println
   {A : Type}

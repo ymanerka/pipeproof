@@ -1,5 +1,5 @@
 (******************************************************************************)
-(* Copyright (c) 2015 Daniel Lustig, Princeton University                     *)
+(* Copyright (c) 2018 Yatin Manerkar (Princeton Uni.) & Daniel Lustig (NVIDIA)*)
 (*                                                                            *)
 (* Permission is hereby granted, free of charge, to any person obtaining a    *)
 (* copy of this software and associated documentation files (the "Software"), *)
@@ -72,8 +72,21 @@ Extract Constant List.length => "( List.length )".
 Extract Constant PrintFlag => "( BackendLinux.printFlag )".
 Extract Constant Printf => "( BackendLinux.printf )".
 Extract Constant PrintfFlush => "( BackendLinux.printfFlush )".
+Extract Constant PrintTimestamp => "( BackendLinux.printTimestamp )".
 
 Extract Constant TimeForStatusUpdate => "( BackendLinux.timeForStatusUpdate )".
+
+Extract Constant BelowCPThresholdInternal => "( BackendLinux.belowCPThresholdInternal )".
+
+Extract Constant BelowMemoThreshold => "( BackendLinux.belowMemoThreshold )".
+
+Extract Constant IsFilterStrat => "( BackendLinux.isFilterStrat )".
+
+Extract Constant UseISASym => "( BackendLinux.useISASym )".
+
+Extract Constant DoGenCex => "( BackendLinux.doGenCex )".
+
+Extract Constant LowerThanBound => "( BackendLinux.lowerThanBound )".
 
 (*
 Extract Constant zero => "'λ000'".
@@ -90,5 +103,6 @@ Extraction "PipeGraph.ml"
   FOLLookupPredicate_lE FOLLookupPredicate_N FOLLookupPredicate_lN
   FOLLookupPredicate_SSS FOLLookupPredicate_IS
   FOLLookupPredicate_ADSS FOLLookupPredicate_ADS FOLLookupPredicate_IIIIS
-  MicroarchitecturalComponent EvaluateUHBGraphs StageNames ExpectedResult.
+  MicroarchitecturalComponent EvaluateUHBGraphs StageNames ExpectedResult
+  SeqConst TSO.
 
