@@ -32,7 +32,7 @@ Daniel Lustig+, Geet Sethi+, Margaret Martonosi, and Abhishek Bhattacharjee.
   Languages and Operating Systems (ASPLOS)*, Atlanta, GA, April 2016.
   (+: joint first authors)
 
-Yatin A. Manerkar, Daniel Lustig, Michael Pellauer, and Margaret Martonsi.
+Yatin A. Manerkar, Daniel Lustig, Michael Pellauer, and Margaret Martonosi.
   "CCICheck: Using uhb Graphs to Verify the Coherence-Consistency Interface",
   *48th International Symposium on Microarchitecture (MICRO)*,
   Honolulu, HI, December 2015.
@@ -87,29 +87,29 @@ To write a new uspec model for PipeProof, keep in mind the following:
 You can simply copy the theory lemmas from `simpleSC.uarch` to your new uspec model unless you're adding something
 that requires new theory lemmas. For example, if you were adding a new ISA-level edge `coi` that represents coherence order
 between same-core instructions, you may wish to add a theory lemma enforcing that `coi` implies a `co` edge between the
-two instructions and that the SameCore predicate would be true for the two instructions connected by the edge.
+two instructions and that the `SameCore` predicate would be true for the two instructions connected by the edge.
 5. Chain invariants should be written as axioms (one per invariant), with each invariant axiom's named
 `Invariant_<name-of-invariant>` (see `simpleSC.uarch` for an example).
-6. If you are adding new invariant ISA-level edges for your invariants that are not present in the base PipeProof implementation,
-you will need to add them to the definition of `ISAEdge` in `FOL.v`. You will also need to modify most of the functions that
+6. If you are adding new invariant ISA-level edges (like `po_plus`) for your invariants that are not present in the base PipeProof implementation,
+you will need to add them to the definition of `ISAEdge` in `FOLPredicate.v`. You will also need to modify most of the functions that
 deal with elements of type `ISAEdge` to handle these new ISA-level edges.
 7. To enable PipeProof to search generated ISA-level chains for an ISA-level pattern that represents a new invariant edge,
-you should add the pattern and its corresponding invariant edge to `InvPatterns` at line 3854 of `FOL.v` as an (ISAPattern, ISAEdge) tuple,
+you should add the pattern and its corresponding invariant edge to `InvPatterns` at line 3854 of `FOL.v` as an `(ISAPattern, ISAEdge)` tuple,
 where the second element is the invariant edge. Supported patterns are single ISA-level relations or chains of ISA-level relations.
 
 Note that delving into the Gallina code may not be necessary to get your new uspec model to work with PipeProof.
 
 To add a new ISA-level MCM other than SC and TSO, do the following:
 
-1. Add the definition of it as a list of ISA-level axioms after line 5516 in FOL.v.
-See the definitions of SC and TSO in FOL.v for examples.
-2. Add the name of your new model to the extraction list at the end of PipeGraph.v.
-3. Modify the `isa_mcm_for` function in Main.ml to allow selection of your new ISA-level MCM
+1. Add the definition of it as a list of ISA-level axioms after line 5516 in `FOL.v.`
+See the definitions of SC and TSO in `FOL.v` for examples.
+2. Add the name of your new model to the extraction list at the end of `PipeGraph.v`.
+3. Modify the `isa_mcm_for` function in `Main.ml` to allow selection of your new ISA-level MCM
 with a command-line parameter.
 
 To run PipeProof, proceed as follows:
 
-`src/pipeproof -s <memoization setting> -l <ISA-level MCM> -f <filtering/covering setting> -c <Distributing ANDs over ORs threshold> -o <output file> -m <uspec file> [-x] [-b 4]`
+`src/pipeproof -s <memoization setting> -l <ISA-level MCM> -f <filtering/covering setting> -c <Distributing ANDs over ORs threshold> -o <output file> -m <uspec file> [-x] [-b <bounded cyclic cex search limit>]`
 
 Note the following points:
 
@@ -117,18 +117,18 @@ Note the following points:
 2. Current valid values for the ISA-level MCM are `SC` and `TSO`.
 3. The filtering/covering setting is:
 
--`0` to filter required edges both before and after applying chain invariants (this may help when debugging)
--`1` to filter only after applying chain invariants (the default),
--`2` to add the Covering Sets Optimization to the default,
--`3` to both filter and apply covering sets before and after applying chain invariants (again, may help when debugging)
+- `0` to filter required edges both before and after applying chain invariants (this may help when debugging)
+- `1` to filter only after applying chain invariants (the default),
+- `2` to add the Covering Sets Optimization to the default,
+- `3` to both filter and apply covering sets before and after applying chain invariants (again, may help when debugging)
 
 4. Distributing small ANDs over ORs helps the performance of PipeProof's solver. A value of 5 for this threshold was empirically determined to work well.
 5. The `-x` option tells PipeProof to search for a cyclic counterexample through a bounded search if the proof of TC Abstraction support fails. Note that
 the proof of TC Abstraction support may fail because:
 
--the microarchitecture is buggy
--the microarchitecture is correct, but does not satisfy the TC Abstraction support theorem (please see the paper for details).
--the microarchitecture is correct, but the chain invariants provided by the user are not strong enough
+- the microarchitecture is buggy
+- the microarchitecture is correct, but does not satisfy the TC Abstraction support theorem (please see the PipeProof paper for details)
+- the microarchitecture is correct, but the chain invariants provided by the user are not strong enough
 
 Thus, if the microarchitecture is correct but PipeProof cannot prove TC Abstraction support for it, the cyclic counterexample search may
 never find a counterexample.
@@ -160,16 +160,16 @@ theorems such as the four color theorem, and it has been used to produce
 C compilers which provably produce correct C code.  PipeProof itself does not
 yet contain any verified theorems or processes.  Nevertheless, we chose Coq to
 make for easier integration with other formal models written using Coq, and to
-leave open the possiblity of formally proving the correctness of our PipeProof
+leave open the possibility of formally proving the correctness of our PipeProof
 implementation in the future.
 
-In practice, we are also interested in using PipeProof as a practical tool.
+In practice, we are interested in using PipeProof as a practical tool.
 For this reason, we auto-extract our code from Coq to OCaml (using built-in
 Coq methodology for doing so), and we compile this code to run natively.  So
 far, we have implemented two algorithmic optimizations (Covering Sets and
 Memoization; please see the PipeProof paper for details) that have significantly improved
 the runtime of the tool. To see how to enable/disable these optimizations,
-please see the "Basic Usage" section.
+please see the "Basic Usage" section above.
 
 We intend to optimize further in future work,
 particularly through a parallel implementation of PipeProof's algorithm, which is
