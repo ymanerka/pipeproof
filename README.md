@@ -81,7 +81,8 @@ To write a new uspec model for PipeProof, keep in mind the following:
 
 1. All constraints are provided in a single uspec file (axioms, mappings, theory lemmas, and chain invariants).
 2. You can generally write your microarchitectural axioms as you would when writing traditional uspec
-(eg: as you would with prior tools from the Check suite).
+(eg: as you would with prior tools from the Check suite). Please refer to the [tutorial on the Check tools](https://check.cs.princeton.edu/tutorial.html)
+(specifically the Background and PipeCheck sections) for information on the uspec domain-specific language and uspec examples.
 3. Your mappings should be provided as a single axiom named `Mappings` (see `simpleSC.uarch` for an example).
 4. Theory lemmas should be provided as a single axiom named `Theory_Lemmas` (see `simpleSC.uarch` for an example).
 You can simply copy the theory lemmas from `simpleSC.uarch` to your new uspec model unless you're adding something
@@ -157,7 +158,7 @@ To run PipeProof on simpleTSO with Covering Sets, Memoization, distribution, bou
 PipeProof is written in Coq, a theorem prover/verification assistant.  For
 example, Coq has been used to rigorously and formally verify mathematical
 theorems such as the four color theorem, and it has been used to produce
-C compilers which provably produce correct C code.  PipeProof itself does not
+C compilers which provably produce correct machine code.  PipeProof itself does not
 yet contain any verified theorems or processes.  Nevertheless, we chose Coq to
 make for easier integration with other formal models written using Coq, and to
 leave open the possibility of formally proving the correctness of our PipeProof
